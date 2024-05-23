@@ -7,13 +7,15 @@ class CalendarClient
     private string $password;
     private array $headers = [];
     private $curl;
+    private string $baseUrl;
 
     public function __construct($url, $username, $password)
     {
         $this->url = $url;
         $this->username = $username;
         $this->password = $password;
-        $this->prepareCurl();
+        $this->prepareCurl($this->url);
+        $this->baseUrl = parse_url($this->url, PHP_URL_SCHEME) . '://' . parse_url($this->url, PHP_URL_HOST) . '/';
     }
 
     private function setHeaders(int $depth, string $type): void
@@ -24,10 +26,10 @@ class CalendarClient
         );
     }
 
-    private function prepareCurl(): void
+    private function prepareCurl(string $url): void
     {
         $this->curl = curl_init();
-        curl_setopt($this->curl, CURLOPT_URL, $this->url);
+        curl_setopt($this->curl, CURLOPT_URL, $url);
         curl_setopt($this->curl, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($this->curl, CURLOPT_USERPWD, $this->username . ':' . $this->password);
         curl_setopt($this->curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
@@ -35,7 +37,7 @@ class CalendarClient
 
     public function getCalendarInfo(): array
     {
-        self::prepareCurl();
+        self::prepareCurl($this->url);
         curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'PROPFIND');
         self::setHeaders(1, 'text');
         curl_setopt($this->curl, CURLOPT_HTTPHEADER, array_merge($this->headers, array('Prefer: return-minimal')));
@@ -86,9 +88,9 @@ class CalendarClient
         return $calendarsData;
     }
 
-    public function getEvents(): string
+    public function getEvents(string $url): string
     {
-        self::prepareCurl();
+        self::prepareCurl($this->baseUrl . $url);
         curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'REPORT');
         self::setHeaders(1, 'application/xml');
         curl_setopt($this->curl, CURLOPT_HTTPHEADER, array_merge($this->headers, array('Prefer: return-minimal')));
@@ -114,56 +116,14 @@ class CalendarClient
         curl_close($this->curl);
         return $result;
     }
+
+    public function getAllEvents(array $calendars): array
+    {
+        $events = [];
+        foreach ($calendars as $calendar) {
+            array_push($events, $this->getEvents($calendar));
+        }
+
+        return $events;
+    }
 }
-
-// function display($object, $name = '')
-// {
-//     echo "<b>$name</b> \n";
-//     echo "<pre>";
-//     echo (print_r($object, true));
-//     echo "</pre>";
-//     echo "<hr>";
-// }
-
-// $calendarUrl = "https://mail-mo.dvinaland.ru/dav.php/calendars/chivirda.si@ict29.ru/ec7342315ea0ea7eb7c6ae6a0422137bcaf52f3f-cb76-4f7d-a227-11808eb2f3c9";
-
-// $username = "chivirda.si@ict29.ru";
-// $password = "E6n3HMqBcr";
-
-// $curl = curl_init();
-// curl_setopt($curl, CURLOPT_URL, $calendarUrl);
-// curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-// curl_setopt($curl, CURLOPT_USERPWD, $username . ':' . $password);
-// curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-// curl_setopt($curl, CURLOPT_CUSTOMREQUEST, 'REPORT');
-
-// $headers = array(
-//     "Depth: 1",
-//     "Prefer: return-minimal",
-//     "Content-Type: application/xml; charset=utf-8"
-// );
-
-// $body = <<<XML
-// <c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
-//     <d:prop>
-//         <d:getetag />
-//         <c:calendar-data />
-//     </d:prop>
-//     <c:filter>
-//         <c:comp-filter name="VCALENDAR" />
-//     </c:filter>
-// </c:calendar-query>
-// XML;
-
-// curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
-// curl_setopt($curl, CURLOPT_POSTFIELDS, $body);
-// $result = curl_exec($curl);
-
-// if ($result === false) {
-//     sprintf('Curl error: %s', curl_error($curl));
-// } else {
-//     sprintf('Curl response: %s', $result);
-// }
-// curl_close($curl);
-
-// display($result, "Items:");

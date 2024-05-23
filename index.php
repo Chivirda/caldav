@@ -28,5 +28,5 @@ $client = new CalendarClient($caldav_url, $username, $password);
 $calendars = $client->getCalendarInfo();
 display($calendars, 'Calendars:');
 
-$events = $client->getEvents();
-display($events, 'Events:');
+$event = $client->getAllEvents($calendars);
+display($event, 'Events:');
