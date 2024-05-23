@@ -16,12 +16,13 @@ function display($object, $name = '') {
     echo "<hr>";
 }
 
-// URL CalDav сервера для получения всех календарей пользователя
-$caldav_url = 'https://mail-mo.dvinaland.ru/dav.php/calendars/chivirda.si@ict29.ru/';
-
 // Данные для аутентификации
 $username = $_ENV["USER"];
 $password = $_ENV["PASSWORD"];
+
+// URL CalDav сервера для получения всех календарей пользователя
+$caldav_url = "https://mail-mo.dvinaland.ru/dav.php/calendars/$username/";
+
 
 $client = new CalendarClient($caldav_url, $username, $password);
 $calendars = $client->getCalendarInfo();
