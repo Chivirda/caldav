@@ -2,7 +2,6 @@
 require_once("./vendor/autoload.php");
 require_once("./caldav.php");
 
-use CalendarClient;
 use Symfony\Component\Dotenv\Dotenv;
 
 $dotenv = new Dotenv();
