@@ -35,6 +35,12 @@ class CalendarClient
         curl_setopt($this->curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
     }
 
+    private function generateBitrixUid(): string
+    {
+        $uniqueHash = md5(uniqid(mt_rand(), true));
+        return $uniqueHash . "@bitrix";
+    }
+
     public function getCalendarInfo(): array
     {
         self::prepareCurl($this->url);
