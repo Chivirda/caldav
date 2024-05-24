@@ -35,12 +35,6 @@ class CalendarClient
         curl_setopt($this->curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
     }
 
-    private function generateBitrixUid(): string
-    {
-        $uniqueHash = md5(uniqid(mt_rand(), true));
-        return $uniqueHash . "@bitrix";
-    }
-
     public function getCalendarInfo(): array
     {
         self::prepareCurl($this->url);
@@ -141,7 +135,7 @@ class CalendarClient
         return $events;
     }
 
-    public function parseEventForBitrix($event): string
+    public function parseEventForBitrix($event): array
     {
         $calendarData = $event;
         
@@ -157,8 +151,8 @@ class CalendarClient
             $event['description'] = $this->extractValue($eventData, 'DESCRIPTION');
         }
 
-        return json_encode($event, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-        // return $event;
+        // return json_encode($event, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        return $event;
     }
 
     private function extractValue(string $eventData, string $tagName): ?string

@@ -30,7 +30,12 @@ $calendars = $client->getCalendarInfo();
 display($calendars, 'Calendars:');
 
 
-$event = $client->getAllEvents($calendars);
-display($event[0][0], 'Event:');
-$json = $client->parseEventForBitrix($event[0][0]);
-display($json, 'Event:');
+$events = $client->getAllEvents($calendars);
+display($events, 'Events:');
+
+foreach ($events as $event) {
+    foreach ($event as $key => $value) {
+        $json = $client->parseEventForBitrix($value);
+        display($json, 'Event:');
+    }
+}
