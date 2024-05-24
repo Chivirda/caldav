@@ -36,6 +36,7 @@ class CalendarClient
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_USERPWD => $this->username . ':' . $this->password,
             CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
+            CURLOPT_HTTPHEADER => $this->headers,
         ]);
     }
 
@@ -47,10 +48,7 @@ class CalendarClient
     public function getCalendarInfo(): array
     {
         $this->prepareCurl($this->url);
-        curl_setopt_array($this->curl, [
-            CURLOPT_CUSTOMREQUEST => 'PROPFIND',
-            CURLOPT_HTTPHEADER => $this->headers,
-        ]);
+        curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'PROPFIND');
 
         $calendarQuery = <<<XML
         <?xml version="1.0" encoding="UTF-8"?>
@@ -96,11 +94,8 @@ class CalendarClient
     public function getEvents(string $calendarUrl): array
     {
         $this->prepareCurl($this->baseUrl . $calendarUrl);
+        curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'REPORT');
 
-        curl_setopt_array($this->curl, [
-            CURLOPT_CUSTOMREQUEST => 'REPORT',
-            CURLOPT_HTTPHEADER => $this->headers,
-        ]);
         $calendarQuery = <<<XML
         <?xml version="1.0" encoding="UTF-8"?>
         <c:calendar-query xmlns:c="urn:ietf:params:xml:ns:caldav">
