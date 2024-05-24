@@ -1,4 +1,5 @@
 <?php
+
 require_once("./vendor/autoload.php");
 require_once("./caldav.php");
 
@@ -7,7 +8,8 @@ use Symfony\Component\Dotenv\Dotenv;
 $dotenv = new Dotenv();
 $dotenv->load(__DIR__ . '/.env');
 
-function display($object, $name = '') {
+function display($object, $name = '')
+{
     echo "<b>$name</b> \n";
     echo "<pre>";
     echo(print_r($object, true));
@@ -27,5 +29,8 @@ $client = new CalendarClient($caldav_url, $username, $password);
 $calendars = $client->getCalendarInfo();
 display($calendars, 'Calendars:');
 
+
 $event = $client->getAllEvents($calendars);
-display($event, 'Events:');
+display($event[0][0], 'Event:');
+$json = $client->parseEventForBitrix($event[0][0]);
+display($json, 'Event:');

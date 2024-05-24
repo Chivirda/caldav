@@ -61,7 +61,7 @@ class CalendarClient
 
         curl_setopt($this->curl, CURLOPT_POSTFIELDS, $body);
         $result = curl_exec($this->curl);
-        
+
         if ($result === false) {
             sprintf('Curl error: %s', curl_error($this->curl));
         } else {
@@ -84,7 +84,6 @@ class CalendarClient
                     $name = !empty($displayname) ? (string)$displayname[0] : 'Без названия';
                     $xmlId = !empty($href) ? (string)$href[0] : 'Нет xmlId';
                     if (strlen($xmlId) > 47) {
-                        
                         $calendarsData[$name] = $xmlId;
                     }
                 }
@@ -140,5 +139,52 @@ class CalendarClient
         }
 
         return $events;
+    }
+
+    public function parseEventForBitrix($event): string
+    {
+        $calendarData = $event;
+        
+        $event = [];
+        
+        if (preg_match('/BEGIN:VEVENT(.*)END:VEVENT/s', $calendarData, $matches)) {
+            $eventData = $matches[1];
+
+            $event['host'] = $this->extractCNValue($eventData, 'ORGANIZER');
+            $event['from'] = $this->extractDateValue($eventData, 'DTSTART');
+            $event['to'] = $this->extractDateValue($eventData, 'DTEND');
+            $event['name'] = $this->extractValue($eventData, 'SUMMARY');
+            $event['description'] = $this->extractValue($eventData, 'DESCRIPTION');
+        }
+
+        return json_encode($event, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        // return $event;
+    }
+
+    private function extractValue(string $eventData, string $tagName): ?string
+    {
+        if (preg_match('/' . $tagName . ':(.*?)(?:\r?\n|$)/s', $eventData, $matches)) {
+            return trim($matches[1]);
+        }
+        return null;
+    }
+
+    private function extractDateValue(string $eventData, string $tagName): ?string
+    {
+        if (preg_match('/' . $tagName . '[^:]*:(.*?)(?:\r?\n|$)/s', $eventData, $matches)) {
+            $dateTime = trim($matches[1]);
+            // Форматирование даты и времени
+            $formattedDateTime = date('d.m.Y H:i:s', strtotime($dateTime));
+            return $formattedDateTime;
+        }
+        return null;
+    }
+
+    function extractCNValue(string $eventData, string $tagName): ?string
+    {
+        if (preg_match('/' . $tagName . '[^:]*;CN=([^;:]*)(?:;|:)/', $eventData, $matches)) {
+            return trim($matches[1]);
+        }
+        return null;
     }
 }
