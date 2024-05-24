@@ -140,24 +140,35 @@ class CalendarClient
         return $events;
     }
 
+    /**
+     * Parses an iCalendar event and extracts relevant information for Bitrix.
+     *
+     * @param string $event The iCalendar event to parse.
+     * @return array An associative array containing the extracted information:
+     *               - 'host': The host of the event (extracted from the ORGANIZER field).
+     *               - 'from': The start date and time of the event (extracted from the DTSTART field).
+     *               - 'to': The end date and time of the event (extracted from the DTEND field).
+     *               - 'name': The summary of the event (extracted from the SUMMARY field).
+     *               - 'description': The description of the event (extracted from the DESCRIPTION field).
+     * @throws None
+     */
     public function parseEventForBitrix($event): array
     {
-        $calendarData = $event;
-        
-        $event = [];
-        
-        if (preg_match('/BEGIN:VEVENT(.*)END:VEVENT/s', $calendarData, $matches)) {
+        if (preg_match('/BEGIN:VEVENT((?:(?!END:VEVENT).)*?)END:VEVENT/s', $event, $matches)) {
             $eventData = $matches[1];
 
-            $event['host'] = $this->extractCNValue($eventData, 'ORGANIZER');
-            $event['from'] = $this->extractDateValue($eventData, 'DTSTART');
-            $event['to'] = $this->extractDateValue($eventData, 'DTEND');
-            $event['name'] = $this->extractValue($eventData, 'SUMMARY');
-            $event['description'] = $this->extractValue($eventData, 'DESCRIPTION');
+            $event = [
+                'host' => $this->extractCNValue($eventData, 'ORGANIZER'),
+                'from' => $this->extractDateValue($eventData, 'DTSTART'),
+                'to' => $this->extractDateValue($eventData, 'DTEND'),
+                'name' => $this->extractValue($eventData, 'SUMMARY'),
+                'description' => $this->extractValue($eventData, 'DESCRIPTION'),
+            ];
+
+            return $event;
         }
 
-        // return json_encode($event, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-        return $event;
+        return [];
     }
 
     private function extractValue(string $eventData, string $tagName): ?string
