@@ -26,23 +26,37 @@ class CalendarClient
         );
     }
 
+    /**
+     * Initializes a cURL session with the given URL and sets the necessary options for authentication.
+     *
+     * @param string $url The URL to connect to.
+     * @throws None
+     * @return void
+     */
     private function prepareCurl(string $url): void
     {
         $this->curl = curl_init();
-        curl_setopt($this->curl, CURLOPT_URL, $url);
-        curl_setopt($this->curl, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($this->curl, CURLOPT_USERPWD, $this->username . ':' . $this->password);
-        curl_setopt($this->curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+        curl_setopt_array($this->curl, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_USERPWD => $this->username . ':' . $this->password,
+            CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
+        ]);
     }
 
+    /**
+     * Returns information about all calendars available to the user
+     *
+     * @return array An associative array with calendar names as keys and their URLs as values
+     */
     public function getCalendarInfo(): array
     {
-        self::prepareCurl($this->url);
+        $this->prepareCurl($this->url);
         curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'PROPFIND');
-        self::setHeaders(1, 'text');
-        curl_setopt($this->curl, CURLOPT_HTTPHEADER, array_merge($this->headers, array('Prefer: return-minimal')));
+        $this->setHeaders(1, 'text');
+        curl_setopt($this->curl, CURLOPT_HTTPHEADER, array_merge($this->headers, ['Prefer' => 'return-minimal']));
 
-        $body = <<<XML
+        $calendarQuery = <<<XML
         <?xml version="1.0" encoding="UTF-8"?>
         <d:propfind xmlns:d="DAV:" xmlns:cs="http://calendarserver.org/ns/">
         <d:prop>
@@ -53,76 +67,67 @@ class CalendarClient
         </d:propfind>
         XML;
 
-        curl_setopt($this->curl, CURLOPT_POSTFIELDS, $body);
+        curl_setopt($this->curl, CURLOPT_POSTFIELDS, $calendarQuery);
         $result = curl_exec($this->curl);
+        curl_close($this->curl);
 
-        if ($result === false) {
-            sprintf('Curl error: %s', curl_error($this->curl));
-        } else {
-            $calendarsData = [];
-            // Парсим XML-ответ
-            $xml = simplexml_load_string($result);
-            $xml->registerXPathNamespace('d', 'DAV:');
-            $xml->registerXPathNamespace('cs', 'http://calendarserver.org/ns/');
+        $xml = simplexml_load_string($result);
+        $xml->registerXPathNamespace('d', 'DAV:');
+        $xml->registerXPathNamespace('cs', 'http://calendarserver.org/ns/');
 
-            // Получаем все календарные ресурсы
-            $calendars = $xml->xpath('//d:response');
+        $calendars = $xml->xpath('//d:response');
 
-            // Выводим информацию о каждом календаре
-            foreach ($calendars as $calendar) {
-                $displayname = $calendar->xpath('.//d:displayname');
-                $resourcetype = $calendar->xpath('.//d:resourcetype/d:collection');
-                $href = $calendar->xpath('.//d:href');
-
-                if (!empty($resourcetype)) {
-                    $name = !empty($displayname) ? (string)$displayname[0] : 'Без названия';
-                    $xmlId = !empty($href) ? (string)$href[0] : 'Нет xmlId';
-                    if (strlen($xmlId) > 47) {
-                        $calendarsData[$name] = $xmlId;
-                    }
-                }
+        $calendarsData = [];
+        foreach ($calendars as $calendar) {
+            $calendarName = (string)$calendar->xpath('.//d:displayname')[0] ?? 'Без названия';
+            $calendarUrl = (string)$calendar->xpath('.//d:href')[0] ?? '';
+            if (strlen($calendarUrl) > 47) {
+                $calendarsData[$calendarName] = $calendarUrl;
             }
         }
-        curl_close($this->curl);
+
         return $calendarsData;
     }
 
-    public function getEvents(string $url): array
+    /**
+     * Returns all events in a given calendar
+     *
+     * @param string $calendarUrl URL of the calendar to query
+     * @return array An array of SimpleXMLElement objects containing the event data
+     */
+    public function getEvents(string $calendarUrl): array
     {
-        self::prepareCurl($this->baseUrl . $url);
-        curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'REPORT');
-        self::setHeaders(1, 'text');
-        curl_setopt($this->curl, CURLOPT_HTTPHEADER, array_merge($this->headers, array('Prefer: return-minimal')));
-        $body = <<<XML
+        $this->prepareCurl($this->baseUrl . $calendarUrl);
+
+        $this->setHeaders(1, 'text');
+        curl_setopt_array($this->curl, [
+            CURLOPT_CUSTOMREQUEST => 'REPORT',
+            CURLOPT_HTTPHEADER => array_merge($this->headers, ['Prefer' => 'return-minimal']),
+        ]);
+        $calendarQuery = <<<XML
         <?xml version="1.0" encoding="UTF-8"?>
         <c:calendar-query xmlns:c="urn:ietf:params:xml:ns:caldav">
-        <d:prop xmlns:d="DAV:">
-            <d:getetag />
-            <c:calendar-data />
-        </d:prop>
-        <c:filter>
-            <c:comp-filter name="VCALENDAR">
-            <c:comp-filter name="VEVENT" />
-            </c:comp-filter>
-        </c:filter>
+            <d:prop xmlns:d="DAV:">
+                <d:getetag />
+                <c:calendar-data />
+            </d:prop>
+            <c:filter>
+                <c:comp-filter name="VCALENDAR">
+                    <c:comp-filter name="VEVENT" />
+                </c:comp-filter>
+            </c:filter>
         </c:calendar-query>
         XML;
 
-        curl_setopt($this->curl, CURLOPT_POSTFIELDS, $body);
+        curl_setopt($this->curl, CURLOPT_POSTFIELDS, $calendarQuery);
         $result = curl_exec($this->curl);
-        if ($result === false) {
-            sprintf('Curl error: %s', curl_error($this->curl));
-        } else {
-            // Парсим XML-ответ
-            $xml = simplexml_load_string($result);
-            $xml->registerXPathNamespace('d', 'DAV:');
-            $xml->registerXPathNamespace('c', 'urn:ietf:params:xml:ns:caldav');
+        $xml = simplexml_load_string($result);
+        $xml->registerXPathNamespace('d', 'DAV:');
+        $xml->registerXPathNamespace('c', 'urn:ietf:params:xml:ns:caldav');
 
-            // Получаем все события
-            $events = $xml->xpath('//c:calendar-data');
-        }
         curl_close($this->curl);
-        return $events;
+
+        return $xml->xpath('//c:calendar-data');
     }
 
     public function getAllEvents(array $calendars): array
