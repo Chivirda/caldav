@@ -5,7 +5,10 @@ class CalendarClient
     private string $url;
     private string $username;
     private string $password;
-    private array $headers = [];
+    private array $headers = [
+        "Depth: 1",
+        "Content-Type: text/xml; charset=utf-8",
+    ];
     private $curl;
     private string $baseUrl;
 
@@ -16,14 +19,6 @@ class CalendarClient
         $this->password = $password;
         $this->prepareCurl($this->url);
         $this->baseUrl = parse_url($this->url, PHP_URL_SCHEME) . '://' . parse_url($this->url, PHP_URL_HOST) . '/';
-    }
-
-    private function setHeaders(int $depth, string $type): void
-    {
-        $this->headers = array(
-            "Depth: $depth",
-            "Content-Type: $type/xml; charset=utf-8",
-        );
     }
 
     /**
@@ -52,9 +47,10 @@ class CalendarClient
     public function getCalendarInfo(): array
     {
         $this->prepareCurl($this->url);
-        curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'PROPFIND');
-        $this->setHeaders(1, 'text');
-        curl_setopt($this->curl, CURLOPT_HTTPHEADER, array_merge($this->headers, ['Prefer' => 'return-minimal']));
+        curl_setopt_array($this->curl, [
+            CURLOPT_CUSTOMREQUEST => 'PROPFIND',
+            CURLOPT_HTTPHEADER => $this->headers,
+        ]);
 
         $calendarQuery = <<<XML
         <?xml version="1.0" encoding="UTF-8"?>
@@ -86,6 +82,8 @@ class CalendarClient
             }
         }
 
+        curl_close($this->curl);
+        
         return $calendarsData;
     }
 
@@ -99,10 +97,9 @@ class CalendarClient
     {
         $this->prepareCurl($this->baseUrl . $calendarUrl);
 
-        $this->setHeaders(1, 'text');
         curl_setopt_array($this->curl, [
             CURLOPT_CUSTOMREQUEST => 'REPORT',
-            CURLOPT_HTTPHEADER => array_merge($this->headers, ['Prefer' => 'return-minimal']),
+            CURLOPT_HTTPHEADER => $this->headers,
         ]);
         $calendarQuery = <<<XML
         <?xml version="1.0" encoding="UTF-8"?>

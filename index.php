@@ -29,13 +29,13 @@ $client = new CalendarClient($caldav_url, $username, $password);
 $calendars = $client->getCalendarInfo();
 display($calendars, 'Calendars:');
 
-// foreach ($calendars as $calendar) {
-//     $events = $client->getEvents($calendar);
-//     display($events, 'Events:');
-// }
+foreach ($calendars as $calendar) {
+    $events = $client->getEvents($calendar);
+    display($events, 'Events:');
+}
 
 $events = $client->getAllEvents($calendars);
-display($events, 'Events:');
+// display($events, 'Events:');
 
 foreach ($events as $event) {
     foreach ($event as $key => $value) {
