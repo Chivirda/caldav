@@ -11,6 +11,30 @@ class CalendarClient
     ];
     private $curl;
     private string $baseUrl;
+    private string $calendarQuery = <<<XML
+    <?xml version="1.0" encoding="UTF-8"?>
+    <d:propfind xmlns:d="DAV:" xmlns:cs="http://calendarserver.org/ns/">
+    <d:prop>
+        <d:displayname />
+        <d:resourcetype />
+        <cs:getctag />
+    </d:prop>
+    </d:propfind>
+    XML;
+    private string $eventsQuery = <<<XML
+    <?xml version="1.0" encoding="UTF-8"?>
+    <c:calendar-query xmlns:c="urn:ietf:params:xml:ns:caldav">
+        <d:prop xmlns:d="DAV:">
+            <d:getetag />
+            <c:calendar-data />
+        </d:prop>
+        <c:filter>
+            <c:comp-filter name="VCALENDAR">
+                <c:comp-filter name="VEVENT" />
+            </c:comp-filter>
+        </c:filter>
+    </c:calendar-query>
+    XML;
 
     public function __construct($url, $username, $password)
     {
@@ -49,19 +73,7 @@ class CalendarClient
     {
         $this->prepareCurl($this->url);
         curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'PROPFIND');
-
-        $calendarQuery = <<<XML
-        <?xml version="1.0" encoding="UTF-8"?>
-        <d:propfind xmlns:d="DAV:" xmlns:cs="http://calendarserver.org/ns/">
-        <d:prop>
-            <d:displayname />
-            <d:resourcetype />
-            <cs:getctag />
-        </d:prop>
-        </d:propfind>
-        XML;
-
-        curl_setopt($this->curl, CURLOPT_POSTFIELDS, $calendarQuery);
+        curl_setopt($this->curl, CURLOPT_POSTFIELDS, $this->calendarQuery);
         $result = curl_exec($this->curl);
         curl_close($this->curl);
 
@@ -81,7 +93,7 @@ class CalendarClient
         }
 
         curl_close($this->curl);
-        
+
         return $calendarsData;
     }
 
@@ -95,23 +107,7 @@ class CalendarClient
     {
         $this->prepareCurl($this->baseUrl . $calendarUrl);
         curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'REPORT');
-
-        $calendarQuery = <<<XML
-        <?xml version="1.0" encoding="UTF-8"?>
-        <c:calendar-query xmlns:c="urn:ietf:params:xml:ns:caldav">
-            <d:prop xmlns:d="DAV:">
-                <d:getetag />
-                <c:calendar-data />
-            </d:prop>
-            <c:filter>
-                <c:comp-filter name="VCALENDAR">
-                    <c:comp-filter name="VEVENT" />
-                </c:comp-filter>
-            </c:filter>
-        </c:calendar-query>
-        XML;
-
-        curl_setopt($this->curl, CURLOPT_POSTFIELDS, $calendarQuery);
+        curl_setopt($this->curl, CURLOPT_POSTFIELDS, $this->eventsQuery);
         $result = curl_exec($this->curl);
         $xml = simplexml_load_string($result);
         $xml->registerXPathNamespace('d', 'DAV:');
