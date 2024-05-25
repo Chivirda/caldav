@@ -182,7 +182,7 @@ class CalendarClient
         return null;
     }
 
-    function extractCNValue(string $eventData, string $tagName): ?string
+    private function extractCNValue(string $eventData, string $tagName): ?string
     {
         if (preg_match('/' . $tagName . '[^:]*;CN=([^;:]*)(?:;|:)/', $eventData, $matches)) {
             return trim($matches[1]);
