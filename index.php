@@ -12,7 +12,7 @@ function display($object, $name = '')
 {
     echo "<b>$name</b> \n";
     echo "<pre>";
-    echo(print_r($object, true));
+    echo (print_r($object, true));
     echo "</pre>";
     echo "<hr>";
 }
@@ -22,10 +22,10 @@ $username = $_ENV["USER"];
 $password = $_ENV["PASSWORD"];
 
 // URL CalDav сервера для получения всех календарей пользователя
-$caldav_url = "https://mail-mo.dvinaland.ru/dav.php/calendars/$username/";
+$caldavUrl = "https://mail-mo.dvinaland.ru/dav.php/calendars/$username/";
 
 
-$client = new CalendarClient($caldav_url, $username, $password);
+$client = new CalendarClient($caldavUrl, $username, $password);
 $calendars = $client->getCalendarInfo();
 display($calendars, 'Calendars:');
 

@@ -72,8 +72,10 @@ class CalendarClient
     public function getCalendarInfo(): array
     {
         $this->prepareCurl($this->url);
-        curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'PROPFIND');
-        curl_setopt($this->curl, CURLOPT_POSTFIELDS, $this->calendarQuery);
+        curl_setopt_array($this->curl, [
+            CURLOPT_CUSTOMREQUEST => 'PROPFIND',
+            CURLOPT_POSTFIELDS => $this->calendarQuery
+        ]);
         $result = curl_exec($this->curl);
         curl_close($this->curl);
 
@@ -106,8 +108,10 @@ class CalendarClient
     public function getEvents(string $calendarUrl): array
     {
         $this->prepareCurl($this->baseUrl . $calendarUrl);
-        curl_setopt($this->curl, CURLOPT_CUSTOMREQUEST, 'REPORT');
-        curl_setopt($this->curl, CURLOPT_POSTFIELDS, $this->eventsQuery);
+        curl_setopt_array($this->curl, [
+            CURLOPT_CUSTOMREQUEST => 'REPORT',
+            CURLOPT_POSTFIELDS => $this->eventsQuery
+        ]);
         $result = curl_exec($this->curl);
         $xml = simplexml_load_string($result);
         $xml->registerXPathNamespace('d', 'DAV:');
