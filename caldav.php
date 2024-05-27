@@ -129,19 +129,41 @@ class CalendarClient
      */
     public function getEvents(string $calendarUrl): array
     {
+        $events = [];
         $this->prepareCurl($this->baseUrl . $calendarUrl);
+
         curl_setopt_array($this->curl, [
             CURLOPT_CUSTOMREQUEST => 'REPORT',
             CURLOPT_POSTFIELDS => $this->eventsQuery
         ]);
-        $result = curl_exec($this->curl);
-        $xml = simplexml_load_string($result);
-        $xml->registerXPathNamespace('d', 'DAV:');
-        $xml->registerXPathNamespace('c', 'urn:ietf:params:xml:ns:caldav');
 
-        curl_close($this->curl);
+        $response = curl_exec($this->curl);
+        $eventsXml = simplexml_load_string($response);
 
-        return $xml->xpath('//c:calendar-data');
+        $eventsXml->registerXPathNamespace('d', 'DAV:');
+        $eventsXml->registerXPathNamespace('c', 'urn:ietf:params:xml:ns:caldav');
+
+        foreach ($eventsXml->xpath('//c:calendar-data') as $event) {
+            $events[] = $this->addCalendarName((string)$event, $this->getCalendarName($calendarUrl));
+        }
+
+        return $events;
+    }
+
+
+    public function addCalendarName(string $eventData, string $calendarName): string
+    {
+        $lines = explode("\n", $eventData);
+        $output = [];
+
+        foreach ($lines as $line) {
+            $output[] = $line;
+            if (trim($line) === 'BEGIN:VEVENT') {
+                $output[] = "X-WR-CALNAME:$calendarName";
+            }
+        }
+
+        return implode("\n", $output);
     }
 
     public function getAllEvents(array $calendars): array
@@ -177,6 +199,7 @@ class CalendarClient
                 'to' => $this->extractDateValue($eventData, 'DTEND'),
                 'name' => $this->extractValue($eventData, 'SUMMARY'),
                 'description' => $this->extractValue($eventData, 'DESCRIPTION'),
+                'calname' => $this->extractValue($eventData, 'X-WR-CALNAME'),
             ];
 
             return $event;
