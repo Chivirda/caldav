@@ -99,6 +99,28 @@ class CalendarClient
         return $calendarsData;
     }
 
+    public function getCalendarName(string $calendarUrl): string
+    {
+        $this->prepareCurl($this->baseUrl . $calendarUrl);
+        curl_setopt_array($this->curl, [
+            CURLOPT_CUSTOMREQUEST => 'PROPFIND',
+            CURLOPT_POSTFIELDS => $this->calendarQuery
+        ]);
+
+        $result = curl_exec($this->curl);
+        curl_close($this->curl);
+
+        $xml = simplexml_load_string($result);
+        $xml->registerXPathNamespace('d', 'DAV:');
+        $xml->registerXPathNamespace('cs', 'http://calendarserver.org/ns/');
+
+        $calendars = $xml->xpath('//d:response');
+        $calendarName = (string)$calendars[0]->xpath('.//d:displayname')[0] ?? 'Без названия';
+        curl_close($this->curl);
+
+        return $calendarName;
+    }
+
     /**
      * Returns all events in a given calendar
      *
