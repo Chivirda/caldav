@@ -176,6 +176,19 @@ class CalendarClient
         return $events;
     }
 
+    public function getEventsForBitrix(array $calendars): array
+    {
+        $response = [];
+        $events = $this->getAllEvents($calendars);
+        foreach ($events as $event) {
+            foreach ($event as $value) {
+                $response[] = $this->parseEventForBitrix($value);
+            }
+        }
+
+        return $response;
+    }
+
     /**
      * Parses an iCalendar event and extracts relevant information for Bitrix.
      *

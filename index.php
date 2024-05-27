@@ -27,21 +27,24 @@ $caldavUrl = "https://mail-mo.dvinaland.ru/dav.php/calendars/$username/";
 
 $client = new CalendarClient($caldavUrl, $username, $password);
 $calendars = $client->getCalendarInfo();
-display($calendars, 'Calendars:');
 
-display($client->getCalendarName(current($calendars)), 'Calendar:');
+$eventsFB = $client->getEventsForBitrix($calendars);
+display($eventsFB, 'EventsFB:');
+// display($calendars, 'Calendars:');
 
-foreach ($calendars as $calendar) {
-    $events = $client->getEvents($calendar);
-    display($events, 'Events:');
-}
+// display($client->getCalendarName(current($calendars)), 'Calendar:');
 
-$events = $client->getAllEvents($calendars);
-// display($events, 'Events:');
+// foreach ($calendars as $calendar) {
+//     $events = $client->getEvents($calendar);
+//     display($events, 'Events:');
+// }
 
-foreach ($events as $event) {
-    foreach ($event as $key => $value) {
-        $json = $client->parseEventForBitrix($value);
-        display($json, 'Event:');
-    }
-}
+// $events = $client->getAllEvents($calendars);
+// // display($events, 'Events:');
+
+// foreach ($events as $event) {
+//     foreach ($event as $key => $value) {
+//         $json = $client->parseEventForBitrix($value);
+//         display($json, 'Event:');
+//     }
+// }
