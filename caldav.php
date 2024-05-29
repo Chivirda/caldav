@@ -151,7 +151,7 @@ class CalendarClient
     }
 
 
-    public function addCalendarName(string $eventData, string $calendarName): string
+    private function addCalendarName(string $eventData, string $calendarName): string
     {
         $lines = explode("\n", $eventData);
         $output = [];
@@ -201,7 +201,7 @@ class CalendarClient
      *               - 'description': The description of the event (extracted from the DESCRIPTION field).
      * @throws None
      */
-    public function parseEventForBitrix($event): array
+    private function parseEventForBitrix($event): array
     {
         if (preg_match('/BEGIN:VEVENT((?:(?!END:VEVENT).)*?)END:VEVENT/s', $event, $matches)) {
             $eventData = $matches[1];
