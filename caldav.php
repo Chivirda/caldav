@@ -21,20 +21,6 @@ class CalendarClient
     </d:prop>
     </d:propfind>
     XML;
-    private string $eventsQuery = <<<XML
-    <?xml version="1.0" encoding="UTF-8"?>
-    <c:calendar-query xmlns:c="urn:ietf:params:xml:ns:caldav">
-        <d:prop xmlns:d="DAV:">
-            <d:getetag />
-            <c:calendar-data />
-        </d:prop>
-        <c:filter>
-            <c:comp-filter name="VCALENDAR">
-                <c:comp-filter name="VEVENT" />
-            </c:comp-filter>
-        </c:filter>
-    </c:calendar-query>
-    XML;
 
     public function __construct($url, $username, $password)
     {
@@ -80,15 +66,19 @@ class CalendarClient
         curl_close($this->curl);
 
         $xml = simplexml_load_string($result);
+        if ($xml === false) {
+            throw new Exception('Failed to load XML');
+        }
+
         $xml->registerXPathNamespace('d', 'DAV:');
         $xml->registerXPathNamespace('cs', 'http://calendarserver.org/ns/');
 
         $calendars = $xml->xpath('//d:response');
-
         $calendarsData = [];
+
         foreach ($calendars as $calendar) {
-            $calendarName = (string)$calendar->xpath('.//d:displayname')[0] ?? 'Без названия';
-            $calendarUrl = (string)$calendar->xpath('.//d:href')[0] ?? '';
+            $calendarName = (string) $calendar->xpath('.//d:displayname')[0] ?? 'Без названия';
+            $calendarUrl = (string) $calendar->xpath('.//d:href')[0] ?? '';
             if (strlen($calendarUrl) > 47) {
                 $calendarsData[$calendarName] = $calendarUrl;
             }
@@ -111,12 +101,15 @@ class CalendarClient
         curl_close($this->curl);
 
         $xml = simplexml_load_string($result);
+        if ($xml === false) {
+            throw new Exception('Failed to load XML');
+        }
+
         $xml->registerXPathNamespace('d', 'DAV:');
         $xml->registerXPathNamespace('cs', 'http://calendarserver.org/ns/');
 
         $calendars = $xml->xpath('//d:response');
-        $calendarName = (string)$calendars[0]->xpath('.//d:displayname')[0] ?? 'Без названия';
-        curl_close($this->curl);
+        $calendarName = (string) $calendars[0]->xpath('.//d:displayname')[0] ?? 'Без названия';
 
         return $calendarName;
     }
@@ -125,20 +118,50 @@ class CalendarClient
      * Returns all events in a given calendar
      *
      * @param string $calendarUrl URL of the calendar to query
-     * @return array An array of SimpleXMLElement objects containing the event data
+     * @param \DateTime $startDate The start date
+     * @param \DateTime $endDate The end date
+     * @return array An array of strings containing the event data
      */
-    public function getEvents(string $calendarUrl): array
-    {
+    public function getEvents(
+        string $calendarUrl,
+        \DateTime $startDate = new DateTime('-1 week'),
+        \DateTime $endDate = new DateTime('+1 week')
+    ): array {
+        $startStr = $startDate->format('Ymd\THis\Z');
+        $endStr = $endDate->format('Ymd\THis\Z');
+
+        $eventsQuery = <<<XML
+        <?xml version="1.0" encoding="UTF-8"?>
+        <c:calendar-query xmlns:c="urn:ietf:params:xml:ns:caldav">
+            <d:prop xmlns:d="DAV:">
+                <d:getetag />
+                <c:calendar-data />
+            </d:prop>
+            <c:filter>
+                <c:comp-filter name="VCALENDAR">
+                    <c:comp-filter name="VEVENT">
+                        <c:time-range start="$startStr" end="$endStr"/>
+                    </c:comp-filter>
+                </c:comp-filter>
+            </c:filter>
+        </c:calendar-query>
+        XML;
+
         $events = [];
         $this->prepareCurl($this->baseUrl . $calendarUrl);
 
         curl_setopt_array($this->curl, [
             CURLOPT_CUSTOMREQUEST => 'REPORT',
-            CURLOPT_POSTFIELDS => $this->eventsQuery
+            CURLOPT_POSTFIELDS => $eventsQuery
         ]);
 
         $response = curl_exec($this->curl);
+        curl_close($this->curl);
+
         $eventsXml = simplexml_load_string($response);
+        if ($eventsXml === false) {
+            throw new Exception('Failed to load XML');
+        }
 
         $eventsXml->registerXPathNamespace('d', 'DAV:');
         $eventsXml->registerXPathNamespace('c', 'urn:ietf:params:xml:ns:caldav');
@@ -150,8 +173,7 @@ class CalendarClient
         return $events;
     }
 
-
-    private function addCalendarName(string $eventData, string $calendarName): string
+    public function addCalendarName(string $eventData, string $calendarName): string
     {
         $lines = explode("\n", $eventData);
         $output = [];
@@ -201,7 +223,7 @@ class CalendarClient
      *               - 'description': The description of the event (extracted from the DESCRIPTION field).
      * @throws None
      */
-    private function parseEventForBitrix($event): array
+    public function parseEventForBitrix($event): array
     {
         if (preg_match('/BEGIN:VEVENT((?:(?!END:VEVENT).)*?)END:VEVENT/s', $event, $matches)) {
             $eventData = $matches[1];
@@ -210,9 +232,10 @@ class CalendarClient
                 'host' => $this->extractCNValue($eventData, 'ORGANIZER'),
                 'from' => $this->extractDateValue($eventData, 'DTSTART'),
                 'to' => $this->extractDateValue($eventData, 'DTEND'),
-                'name' => $this->extractValue($eventData, 'SUMMARY'),
+                'name' => $this->extractValue($this->mergeLines($eventData), 'SUMMARY'),
                 'description' => $this->extractValue($eventData, 'DESCRIPTION'),
                 'calname' => $this->extractValue($eventData, 'X-WR-CALNAME'),
+                'rrule' => $this->extractValue($eventData, 'RRULE'),
             ];
 
             return $event;
@@ -246,5 +269,33 @@ class CalendarClient
             return trim($matches[1]);
         }
         return null;
+    }
+
+    private function mergeLines(string $eventData): string
+    {
+        $lines = explode("\n", $eventData);
+        $mergedLines = [];
+        $previousLine = '';
+
+        foreach ($lines as $line) {
+            if (preg_match('/^\s/', $line)) {
+                if (preg_match('/^\s./', $line)) {
+                    $previousLine .= substr($line, 1);
+                } else {
+                    $previousLine .= trim($line);
+                }
+            } else {
+                if ($previousLine !== '') {
+                    $mergedLines[] = $previousLine;
+                }
+                $previousLine = $line;
+            }
+        }
+
+        if ($previousLine !== '') {
+            $mergedLines[] = $previousLine;
+        }
+
+        return implode("\n", $mergedLines);
     }
 }
