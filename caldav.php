@@ -118,14 +118,17 @@ class CalendarClient
      * Returns all events in a given calendar
      *
      * @param string $calendarUrl URL of the calendar to query
-     * @return array An array of SimpleXMLElement objects containing the event data
+     * @param \DateTime $startDate The start date
+     * @param \DateTime $endDate The end date
+     * @return array An array of strings containing the event data
      */
-    public function getEvents(string $calendarUrl): array
-    {
-        $start = new DateTime('-2 year');
-        $end = new DateTime('+1 week');
-        $startStr = $start->format('Ymd\THis\Z');
-        $endStr = $end->format('Ymd\THis\Z');
+    public function getEvents(
+        string $calendarUrl,
+        \DateTime $startDate = new DateTime('-1 month'),
+        \DateTime $endDate = new DateTime('+1 month')
+    ): array {
+        $startStr = $startDate->format('Ymd\THis\Z');
+        $endStr = $endDate->format('Ymd\THis\Z');
 
         $eventsQuery = <<<XML
         <?xml version="1.0" encoding="UTF-8"?>
