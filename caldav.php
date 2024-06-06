@@ -122,11 +122,10 @@ class CalendarClient
      * @param \DateTime $endDate The end date
      * @return array An array of strings containing the event data
      */
-    public function getEvents(
-        string $calendarUrl,
-        \DateTime $startDate = new DateTime('-1 week'),
-        \DateTime $endDate = new DateTime('+1 week')
-    ): array {
+    public function getEvents(string $calendarUrl): array
+    {
+        $startDate = new DateTime('-1 week');
+        $endDate = new DateTime('+1 week');
         $startStr = $startDate->format('Ymd\THis\Z');
         $endStr = $endDate->format('Ymd\THis\Z');
 
@@ -235,7 +234,7 @@ class CalendarClient
                 'name' => $this->extractValue($this->mergeLines($eventData), 'SUMMARY'),
                 'description' => $this->extractValue($eventData, 'DESCRIPTION'),
                 'calname' => $this->extractValue($eventData, 'X-WR-CALNAME'),
-                'rrule' => $this->extractValue($eventData, 'RRULE'),
+                'rrule' => $this->parseRrule($this->extractValue($eventData, 'RRULE')),
             ];
 
             return $event;
@@ -297,5 +296,24 @@ class CalendarClient
         }
 
         return implode("\n", $mergedLines);
+    }
+
+    private function parseRrule(?string $rrule): ?array
+    {
+        if ($rrule === null) {
+            return null;
+        }
+
+        $values = explode(';', $rrule);
+        $response = [];
+        
+        foreach ($values as $value) {
+            $keyValue = explode('=', $value);
+            if (count($keyValue) === 2) {
+                $response[$keyValue[0]] = $keyValue[1];
+            }
+        }
+
+        return $response;
     }
 }
